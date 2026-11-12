@@ -4,7 +4,7 @@ A daily n8n workflow that picks one public PlacidWay article, has Gemini write a
 
 Built for the PlacidWay AI Automation assessment (Task 1: Social Media Content Automation Workflow).
 
-**Demo video (5-10 min):** PASTE_YOUTUBE_LINK_HERE
+**Demo video (5-10 min):** (https://youtu.be/VctUFCw3gcE)
 
 Built by Jude Ughakpoteni ([LinkedIn](https://linkedin.com/in/jude-ughakpoteni-337393413)).
 

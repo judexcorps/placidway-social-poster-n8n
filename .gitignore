@@ -1,0 +1,9 @@
+# Keep private material out of the repository
+private/
+.env
+*.env
+*.log
+.DS_Store
+Thumbs.db
+workflow_RAW.json
+workflow_FINAL_private.json

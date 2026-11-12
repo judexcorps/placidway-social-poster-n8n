@@ -1,0 +1,1259 @@
+{
+  "name": "PlacidWay Social Poster",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "id": "a253b1ac-2505-4b2e-92c4-9c2d36093ff2",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -5392,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.placidway.com/1/sitemap_articles.xml",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "n8n-assessment-demo/1.0 (low-rate, respects robots.txt)"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 90000
+        }
+      },
+      "id": "a5ab35ea-4c5e-4a57-886f-0cff4d60dda0",
+      "name": "Fetch Sitemap",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -4944,
+        -480
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const xml = $input.first().json.data || '';\nconst blocks = xml.split('<url>').slice(1);\nconst items = [];\nfor (const b of blocks) {\n  const url = (b.match(/<loc>(.*?)<\\/loc>/) || [])[1];\n  if (!url) continue;\n  const lastmod = (b.match(/<lastmod>(.*?)<\\/lastmod>/) || [])[1] || '';\n  const image = ((b.match(/<image:loc>(.*?)<\\/image:loc>/) || [])[1] || '').replace(/&amp;/g, '&');\n  items.push({ json: { url: url.trim(), lastmod, image } });\n}\nif (!items.length) throw new Error('Sitemap parsed but contained no article URLs');\nreturn items.slice(0, 30);"
+      },
+      "id": "91dcd8ef-12cb-4e87-b0ad-d5b30aa70a40",
+      "name": "Parse Sitemap",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4720,
+        -544
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "=1sWauajYfJNqFJzEZiH0vp95z7ywX9mzznQj_FEXgxRM",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "posted_urls"
+        },
+        "options": {}
+      },
+      "id": "45cb0ab0-3baa-4a96-ad69-dadfc8a931a2",
+      "name": "Read Posted URLs",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -4496,
+        -544
+      ],
+      "executeOnce": true,
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "09pOyMO9wEhMeD7M",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const candidates = $('Parse Sitemap').all().map(i => i.json);\nconst posted = new Set($input.all().map(i => String(i.json.url || '').trim()).filter(Boolean));\n// Skip regulated/sensitive topics and non-English pages: safer demo content.\nconst skip = /(ibogaine|addiction|rehab|opiate|opioid|fentanyl|heroin|gender|erectile|penile|tubal|donation|autism|Gastrico|Descubre|Opciones|Paquetes|cancer|stem-cell|parkinson|longevity|anti-aging|oncology|chemo)/i;\nconst pick = candidates.find(c => c.url && !posted.has(c.url) && !skip.test(c.url));\nif (!pick) throw new Error('No unposted, eligible article found among the 30 newest sitemap entries');\nreturn [{ json: pick }];"
+      },
+      "id": "9c5eb597-206e-4bd6-9b64-352d47b59919",
+      "name": "Pick Article",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4272,
+        -544
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "id": "a88d138f-9ced-479f-888d-1746c4c93609",
+      "name": "Wait 3s (crawl-delay)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -4048,
+        -624
+      ],
+      "webhookId": "7dfc713d-bef9-4201-ab3d-4711437379b3"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Pick Article').first().json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "n8n-assessment-demo/1.0 (low-rate, respects robots.txt)"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "0217484f-4dce-425b-b44d-ec62d1a88cb1",
+      "name": "Fetch Article",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3824,
+        -624
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $input.first().json.data || '';\nconst pick = $('Pick Article').first().json;\nconst decode = s => (s || '').replace(/&amp;/g, '&').replace(/&quot;/g, '\"').replace(/&#0?39;/g, \"'\").replace(/&#x27;/g, \"'\").replace(/&apos;/g, \"'\").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').trim();\nconst meta = (key) => {\n  const re1 = new RegExp('<meta[^>]+(?:property|name)=[\"\\']' + key + '[\"\\'][^>]*content=[\"\\']([^\"\\']*)[\"\\']', 'i');\n  const re2 = new RegExp('<meta[^>]+content=[\"\\']([^\"\\']*)[\"\\'][^>]*(?:property|name)=[\"\\']' + key + '[\"\\']', 'i');\n  const m = html.match(re1) || html.match(re2);\n  return m ? decode(m[1]) : '';\n};\nlet title = meta('og:title') || decode((html.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i) || [])[1]);\ntitle = title.replace(/\\s*[\\|\\-–]\\s*PlacidWay.*$/i, '').trim();\nconst summary = meta('og:description') || meta('description');\nconst image = meta('og:image') || pick.image || '';\nconst paras = [...html.matchAll(/<p[^>]*>([\\s\\S]*?)<\\/p>/gi)]\n  .map(m => decode(m[1].replace(/<[^>]+>/g, ' ').replace(/\\s+/g, ' ')))\n  .filter(t => t.length > 40);\nconst source_text = (summary + '\\n' + paras.join('\\n')).slice(0, 4000);\nif (!title || source_text.length < 100) throw new Error('Could not extract enough content from ' + pick.url);\nreturn [{ json: { url: pick.url, lastmod: pick.lastmod, title, summary, image, source_text } }];"
+      },
+      "id": "e9f25463-d4f7-4e6c-8c04-4b5fd971fcab",
+      "name": "Extract Article",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3600,
+        -688
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const a = $input.first().json;\nconst system = [\n  'You write ONE Facebook post for PlacidWay, a medical tourism marketplace, based ONLY on the SOURCE TEXT provided.',\n  'Format: line 1 is a short hook; then 2-4 short lines of value taken from the source; then one call-to-action line inviting readers to read the full article (do NOT include any URL, it is added automatically); the last line has 3-5 relevant hashtags.',\n  'Keep the whole post under 420 characters.',\n  'Rules: make no medical claims and promise no outcomes; state no prices, percentages, statistics or numbers unless they appear in the source; invent no facts; never use the words cure, guarantee, miracle or risk-free; keep a neutral, informative tone; where relevant, remind readers to consult a qualified medical professional.',\n  'Output only the post text.'\n].join('\\n');\nconst user = 'ARTICLE TITLE: ' + a.title + '\\n\\nSOURCE TEXT:\\n' + a.source_text;\nconst write_body = {\n  systemInstruction: { parts: [{ text: system }] },\n  contents: [{ role: 'user', parts: [{ text: user }] }],\n  generationConfig: { temperature: 0.4, maxOutputTokens: 2048 }\n};\nreturn [{ json: { ...a, write_body } }];"
+      },
+      "id": "cb9c1138-3af2-43bc-8801-14096b93548a",
+      "name": "Build Write Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3376,
+        -768
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.write_body) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "291bc4b1-1907-46a6-a7e1-40953351e43e",
+      "name": "Gemini Write",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -3152,
+        -768
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 6000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GVMWN6j6Sd8OzzTM",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Build Write Prompt').first().json;\nconst resp = $input.first().json;\nlet text = ((resp.candidates || [])[0]?.content?.parts || []).map(p => p.text || '').join('').trim();\ntext = text.replace(/^```[a-z]*\\n?/i, '').replace(/```$/, '').trim();\ntext = text.replace(/https?:\\/\\/\\S+/g, '').trim(); // the link is appended by code, never by the model\n\nconst failures = [];\nif (!text) failures.push('empty_generation');\nif (text.length > 500) failures.push('too_long:' + text.length);\nconst tags = text.match(/#\\w+/g) || [];\nif (tags.length < 3 || tags.length > 5) failures.push('hashtag_count:' + tags.length);\nconst banned = /\\b(cure[sd]?|curing|guarantee[sd]?|miracle|risk[- ]free|painless|no side effects|proven to)\\b|100\\s?%/i;\nconst b = text.match(banned);\nif (b) failures.push('banned_word:' + b[0]);\nconst src = ctx.source_text.toLowerCase();\nconst body = text.replace(/#\\w+/g, '').replace(/[ \\t]+\\n/g, '\\n').replace(/\\n{3,}/g, '\\n\\n').trim();\nconst nums = body.match(/[$€£]\\s?\\d[\\d,.]*|\\d[\\d,.]*\\s?%|\\b\\d{2,}[\\d,.]*\\b/g) || [];\nfor (const n of nums) {\n  if (!src.includes(n.trim().toLowerCase())) failures.push('number_not_in_source:' + n.trim());\n}\n\nconst cfg = $('Config1').first().json;\nconst publish = cfg.publish_enabled === true || String(cfg.publish_enabled).toLowerCase() === 'true';\nconst route = cfg.mode === 'approval' ? 'approval' : (publish ? 'publish' : 'dry_run');\nconst { write_body, ...rest } = ctx;\nreturn [{ json: { ...rest, draft: text, post_text: body + '\\n\\n' + ctx.url + '\\n\\n' + tags.join(' '), route, rule_pass: failures.length === 0, failures } }];"
+      },
+      "id": "93f33b65-cb68-4085-a587-44ea697cb93a",
+      "name": "Parse Draft + Rule Checks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2928,
+        -832
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "49b8b526-de45-470d-836d-403b8ee42caa",
+              "leftValue": "={{ $json.rule_pass }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "48623e86-468f-49ce-a463-3f115a4b1729",
+      "name": "Rules Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2704,
+        -832
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst system = [\n  'You are a strict compliance reviewer for medical-tourism marketing posts.',\n  'Compare the POST against the SOURCE. Fail the post if it contains any factual claim not supported by the SOURCE, any medical claim, any promise or implication of a treatment outcome, or any price or statistic not in the SOURCE.',\n  'Respond with JSON only, exactly in this shape: {\"pass\": true|false, \"issues\": [\"short description\", ...]}. Use an empty issues array when pass is true.'\n].join('\\n');\nconst user = 'SOURCE:\\n' + d.source_text + '\\n\\nPOST:\\n' + d.draft;\nconst verify_body = {\n  systemInstruction: { parts: [{ text: system }] },\n  contents: [{ role: 'user', parts: [{ text: user }] }],\n  generationConfig: { temperature: 0, maxOutputTokens: 2048, responseMimeType: 'application/json' }\n};\nreturn [{ json: { ...d, verify_body } }];"
+      },
+      "id": "8ceea60e-b969-407e-857e-022b1f2d5909",
+      "name": "Build Verify Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2480,
+        -864
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.verify_body) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "c0182cd7-eba4-4bee-acc4-83c561f58597",
+      "name": "Gemini Verify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2256,
+        -864
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 6000,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "GVMWN6j6Sd8OzzTM",
+          "name": "Header Auth account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Build Verify Prompt').first().json;\nconst resp = $input.first().json;\nlet verdict;\ntry {\n  const t = ((resp.candidates || [])[0]?.content?.parts || []).map(p => p.text || '').join('');\n  verdict = JSON.parse(t.replace(/^```json/i, '').replace(/```$/, '').trim());\n} catch (e) {\n  verdict = { pass: false, issues: ['verifier_response_unparseable'] }; // fail closed\n}\nconst guard_pass = verdict.pass === true;\nconst failures = guard_pass ? [] : (verdict.issues && verdict.issues.length ? verdict.issues : ['verifier_rejected']).map(i => 'llm_check:' + i);\nconst { verify_body, ...rest } = d;\nreturn [{ json: { ...rest, guard_pass, failures, verdict } }];"
+      },
+      "id": "7873570f-f227-4a4a-9660-c07eafb3997a",
+      "name": "Parse Verdict",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2032,
+        -864
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "5d7317d2-96be-4342-9edc-e84d66d0c021",
+              "leftValue": "={{ $json.guard_pass }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1a3d6621-8e38-48da-973d-de5593e3a2dc",
+      "name": "Guardrails Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1808,
+        -864
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst cfg = $('Config1').first().json;\nconst base = 'https://graph.facebook.com/' + cfg.fb_api_version + '/' + cfg.fb_page_id;\n// With an image: photo post (image + caption). Without: text post with link. Page token is added by the credential, never stored here.\nconst fb = d.image\n  ? { endpoint: base + '/photos', body: { url: d.image, caption: d.post_text } }\n  : { endpoint: base + '/feed', body: { message: d.post_text, link: d.url } };\nreturn [{ json: { ...d, fb } }];"
+      },
+      "id": "a8bb8f14-efa2-443b-86f7-d909456ea657",
+      "name": "Build Facebook Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1584,
+        -864
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "24d765ec-ca3e-4e02-bc12-fa09abb6722b",
+              "leftValue": "={{ $json.route }}",
+              "rightValue": "approval",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "9ef1cea5-f008-4fa6-87dc-4a660327cb86",
+      "name": "Approval Mode?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1360,
+        -864
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Config1').first().json.reviewer_email }}",
+        "subject": "=PlacidWay post awaiting approval: {{ $json.title }}",
+        "emailType": "text",
+        "message": "=DRAFT POST (not published)\n\n{{ $json.post_text }}\n\nImage: {{ $json.image }}\nSource: {{ $json.url }}\n\nApprove by posting it manually to the test Page, or switch mode to auto.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "7d642b13-31a4-448f-81df-d318c9893b1c",
+      "name": "Send For Approval",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -912,
+        -1008
+      ],
+      "webhookId": "99e4899b-0738-4564-87b4-116e71fb3f4f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "eepDwUg3Y67piaaz",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a743d88f-ec63-40b5-a411-e985ff7a0e12",
+              "leftValue": "={{ $json.route }}",
+              "rightValue": "publish",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "283502c7-9b4b-4bad-8fe2-0681d334d6e5",
+      "name": "Publish Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1136,
+        -624
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.fb.endpoint }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.fb.body) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "81bc653f-967b-4a8b-8403-a7fc00cc2951",
+      "name": "Facebook Publish",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -912,
+        -768
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "QBdFSrFWoizCv03N",
+          "name": "Facebook Page Token"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Build Facebook Request').first().json;\nconst cfg = $('Config1').first().json;\nreturn [{ json: { run_time: new Date().toISOString(), mode: cfg.mode, article_url: d.url, title: d.title, post_text: d.post_text, facebook_post_id: '', status: 'awaiting_approval', detail: 'Draft emailed to ' + cfg.reviewer_email } }];"
+      },
+      "id": "5165818d-2a85-4c26-a054-114a68e743d2",
+      "name": "Mark Awaiting Approval",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        -1008
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Build Facebook Request').first().json;\nconst cfg = $('Config1').first().json;\nreturn [{ json: { run_time: new Date().toISOString(), mode: cfg.mode, article_url: d.url, title: d.title, post_text: d.post_text, facebook_post_id: $json.post_id || $json.id || '', status: 'published', detail: 'Posted via ' + d.fb.endpoint.split('/').pop() } }];"
+      },
+      "id": "85d3045c-1a55-436d-ac38-cecf9512fa1a",
+      "name": "Mark Published",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        -816
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst cfg = $('Config1').first().json;\nreturn [{ json: { run_time: new Date().toISOString(), mode: cfg.mode, article_url: d.url, title: d.title, post_text: d.post_text, facebook_post_id: '', status: 'dry_run', detail: 'Would POST to ' + d.fb.endpoint + ' with body ' + JSON.stringify(d.fb.body) + ' (access token omitted)' } }];"
+      },
+      "id": "adffbbe3-5932-40a3-97fe-88d2dd831899",
+      "name": "Mark Dry Run",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst cfg = $('Config1').first().json;\nreturn [{ json: { run_time: new Date().toISOString(), mode: cfg.mode, article_url: d.url, title: d.title, post_text: d.post_text || d.draft || '', facebook_post_id: '', status: 'blocked', detail: 'Guardrail failure, nothing posted: ' + (d.failures || []).join('; ') } }];"
+      },
+      "id": "bea1d5ca-4b45-4695-9a61-a501370d4ace",
+      "name": "Mark Blocked",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Config1').first().json;\nconst e = $json.error || {};\nconst msg = e.message || JSON.stringify($json).slice(0, 500);\nconst node = (e.node && e.node.name) || (typeof e.node === 'string' ? e.node : '');\nlet url = '';\ntry { url = $('Pick Article').first().json.url; } catch (x) {}\nreturn [{ json: { run_time: new Date().toISOString(), mode: cfg.mode, article_url: url, title: '', post_text: '', facebook_post_id: '', status: 'error', detail: (node ? node + ': ' : '') + msg } }];"
+      },
+      "id": "6202fb7f-8ba8-4fc0-8986-befdb8345858",
+      "name": "Build Error Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        -240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "=1sWauajYfJNqFJzEZiH0vp95z7ywX9mzznQj_FEXgxRM",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "run_log"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "run_time": "={{ $json.run_time }}",
+            "mode": "={{ $json.mode }}",
+            "article_url": "={{ $json.article_url }}",
+            "post_text": "={{ $json.post_text }}",
+            "facebook_post_id": "={{ $json.facebook_post_id }}",
+            "status": "={{ $json.status }}",
+            "detail": "={{ $json.detail }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "run_time",
+              "displayName": "run_time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "mode",
+              "displayName": "mode",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "article_url",
+              "displayName": "article_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "post_text",
+              "displayName": "post_text",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "facebook_post_id",
+              "displayName": "facebook_post_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "detail",
+              "displayName": "detail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "cddf3a99-1cbb-4ae1-8ec4-85072aaf4c2d",
+      "name": "Log Run",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -464,
+        -432
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "09pOyMO9wEhMeD7M",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "=1sWauajYfJNqFJzEZiH0vp95z7ywX9mzznQj_FEXgxRM",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "posted_urls"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "url": "={{ $json.article_url }}",
+            "title": "={{ $json.title }}",
+            "posted_at": "={{ $json.run_time }}",
+            "status": "={{ $json.status }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "posted_at",
+              "displayName": "posted_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "8d8d9476-86f4-4258-89f1-f07d74d7f3f1",
+      "name": "Record URL (dedupe store)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -464,
+        -144
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "09pOyMO9wEhMeD7M",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Config1').first().json.reviewer_email }}",
+        "subject": "=PlacidWay poster ALERT: {{ $json.status }}",
+        "emailType": "text",
+        "message": "=Status: {{ $json.status }}\nTime: {{ $json.run_time }}\nArticle: {{ $json.article_url }}\nDetail: {{ $json.detail }}\n\nNothing was posted for this run.",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "f57eeee5-45a5-4948-8c40-277f67a3b8f0",
+      "name": "Alert Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -464,
+        224
+      ],
+      "webhookId": "3a88104f-e497-436e-a5fd-0eecdc48ceca",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "eepDwUg3Y67piaaz",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9026e7f1-a5bc-41d2-b101-e4ff0fb8c354",
+              "name": "mode",
+              "value": "auto",
+              "type": "string"
+            },
+            {
+              "id": "9fa33ea3-8d0d-429a-adf3-715205676827",
+              "name": "publish_enabled",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "f831c751-7a62-40f8-8c30-5edaaa3d19d6",
+              "name": "gemini_model",
+              "value": "Gemini 3.5 Flash-Lite",
+              "type": "string"
+            },
+            {
+              "id": "e61d7321-518c-4cf7-9ec3-528f7eeb3ad5",
+              "name": "fb_page_id",
+              "value": "PASTE_FACEBOOK_ID",
+              "type": "string"
+            },
+            {
+              "id": "d40d0c8e-0a4b-4685-820e-50fcca227d7a",
+              "name": "fb_api_version",
+              "value": "v27.0",
+              "type": "string"
+            },
+            {
+              "id": "77e1ebf5-d2bb-4b09-8697-de8a4b878eb8",
+              "name": "reviewer_email",
+              "value": "YOUR_EMAIL@gmail.com",
+              "type": "string"
+            },
+            {
+              "id": "f76f17f3-21b7-4c36-b083-445df6486481",
+              "name": "sheet_id",
+              "value": "yOUR_GOOGLE_SHEET_ID",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "763329d5-b3d4-4017-ad7a-5350dd78ebfb",
+      "name": "Config1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -5168,
+        -480
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Config1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Sitemap": {
+      "main": [
+        [
+          {
+            "node": "Parse Sitemap",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Sitemap": {
+      "main": [
+        [
+          {
+            "node": "Read Posted URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Posted URLs": {
+      "main": [
+        [
+          {
+            "node": "Pick Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick Article": {
+      "main": [
+        [
+          {
+            "node": "Wait 3s (crawl-delay)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 3s (crawl-delay)": {
+      "main": [
+        [
+          {
+            "node": "Fetch Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Article": {
+      "main": [
+        [
+          {
+            "node": "Extract Article",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Article": {
+      "main": [
+        [
+          {
+            "node": "Build Write Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Write Prompt": {
+      "main": [
+        [
+          {
+            "node": "Gemini Write",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Write": {
+      "main": [
+        [
+          {
+            "node": "Parse Draft + Rule Checks",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Draft + Rule Checks": {
+      "main": [
+        [
+          {
+            "node": "Rules Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rules Passed?": {
+      "main": [
+        [
+          {
+            "node": "Build Verify Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Verify Prompt": {
+      "main": [
+        [
+          {
+            "node": "Gemini Verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Verify": {
+      "main": [
+        [
+          {
+            "node": "Parse Verdict",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Verdict": {
+      "main": [
+        [
+          {
+            "node": "Guardrails Passed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Guardrails Passed?": {
+      "main": [
+        [
+          {
+            "node": "Build Facebook Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Blocked",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Facebook Request": {
+      "main": [
+        [
+          {
+            "node": "Approval Mode?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Approval Mode?": {
+      "main": [
+        [
+          {
+            "node": "Send For Approval",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Publish Enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Publish Enabled?": {
+      "main": [
+        [
+          {
+            "node": "Facebook Publish",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Dry Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send For Approval": {
+      "main": [
+        [
+          {
+            "node": "Mark Awaiting Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook Publish": {
+      "main": [
+        [
+          {
+            "node": "Mark Published",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Awaiting Approval": {
+      "main": [
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Record URL (dedupe store)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Published": {
+      "main": [
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Record URL (dedupe store)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Dry Run": {
+      "main": [
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Record URL (dedupe store)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Blocked": {
+      "main": [
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Record URL (dedupe store)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Alert Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Error Record": {
+      "main": [
+        [
+          {
+            "node": "Log Run",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Alert Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config1": {
+      "main": [
+        [
+          {
+            "node": "Fetch Sitemap",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "48077261-5200-4fe0-9704-bb27fe3dbb98",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f01cd096d1630968fbedfe6a2d5835b83ae489d1b233bf82b13fd7f9050c73f2"
+  },
+  "nodeGroups": [],
+  "id": "SkT4v83J5AOzQzz8",
+  "tags": []
+}
